@@ -65,10 +65,9 @@ class MyTrainDataset(Dataset):
     def __getitem__(self, index):
         return self.data[index]
 
-def main(rank: int, world_size: int, max_epochs: int, batch_size: int):
+def main(rank: int, world_size: int, max_epochs: int, batch_size: int, train_dataset: MyTrainDataset):
     ddp_setup(rank, world_size)
     
-    train_dataset = MyTrainDataset(2048)
     train_dataloader = DataLoader(train_dataset, 
                               batch_size=batch_size, 
                               pin_memory=True, 
@@ -85,7 +84,7 @@ def main(rank: int, world_size: int, max_epochs: int, batch_size: int):
 
     
 if __name__ == '__main__':
-    
+    train_dataset = MyTrainDataset(2048)
     import argparse
     parser = argparse.ArgumentParser(description='simple distributed training job')
     parser.add_argument('--max_epochs', type=int, help='Total epochs to train the model')
@@ -93,6 +92,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     world_size = torch.cuda.device_count()
-    mp.spawn(main, args=(world_size, args.max_epochs, args.batch_size), nprocs=world_size)
+    # 如果不用 torch.multiprocessing.spawn，直接用 mp.Process 来启动进程的话，
+    # 需要手动设置每个进程的 rank 和 world_size，且需要在每个进程中调用 init_process_group
+    # mp.spawn不需要传递rank参数
+    mp.spawn(main, args=(world_size, args.max_epochs, args.batch_size, train_dataset), nprocs=world_size)
     
     
